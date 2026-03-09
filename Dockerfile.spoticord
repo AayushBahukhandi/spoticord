@@ -1,0 +1,30 @@
+# Spoticord image for monorepo (spotify-bot with spoticord + librespot).
+# Single-arch build; use spoticord/Dockerfile for multi-arch (e.g. GitHub Actions).
+
+# Rust 1.88+ required for librespot (edition 2024) and transitive deps (home, time)
+FROM rust:1.88-slim AS builder
+
+WORKDIR /app
+
+# audiopus_sys builds Opus via CMake; needs C++ compiler, make, git
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential cmake git libpq-dev pkg-config \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy whole repo so spoticord can resolve path dependency ../librespot
+COPY . .
+
+WORKDIR /app/spoticord
+
+RUN cargo build --release
+
+# Runtime
+FROM debian:bookworm-slim
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ca-certificates libpq5 \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY --from=builder /app/spoticord/target/release/spoticord /usr/local/bin/spoticord
+
+ENTRYPOINT ["/usr/local/bin/spoticord"]

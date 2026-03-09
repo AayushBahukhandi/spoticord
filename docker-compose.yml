@@ -1,0 +1,51 @@
+# Spoticord stack: PostgreSQL + Discord bot + Link (Next.js) web app
+# Usage:
+#   1. Copy .env.example to .env and fill in secrets (Discord, Spotify, and optional POSTGRES_*).
+#   2. For production: set LINK_URL and SPOTIFY_REDIRECT_URI to your public URL (e.g. https://link.yourdomain.com).
+#   3. docker compose up -d
+
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-spoticord}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-spoticord}
+      POSTGRES_DB: ${POSTGRES_DB:-spoticord}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-spoticord} -d ${POSTGRES_DB:-spoticord}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  spoticord-link:
+    build:
+      context: ./spoticord-link
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER:-spoticord}:${POSTGRES_PASSWORD:-spoticord}@db:5432/${POSTGRES_DB:-spoticord}
+      SPOTIFY_REDIRECT_URI: ${SPOTIFY_REDIRECT_URI:-http://localhost:3000/authorize}
+    ports:
+      - "${LINK_PORT:-3000}:3000"
+    depends_on:
+      db: { condition: service_healthy }
+
+  spoticord:
+    build:
+      context: .
+      dockerfile: Dockerfile.spoticord
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER:-spoticord}:${POSTGRES_PASSWORD:-spoticord}@db:5432/${POSTGRES_DB:-spoticord}
+      LINK_URL: ${LINK_URL:-http://spoticord-link:3000/}
+    depends_on:
+      db: { condition: service_healthy }
+      spoticord-link: { condition: service_started }
+
+volumes:
+  postgres_data:

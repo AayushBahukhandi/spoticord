@@ -1,0 +1,2 @@
+# Docker / deployment: do not commit secrets
+.env
