@@ -28,7 +28,7 @@ services:
     env_file: .env
     environment:
       DATABASE_URL: postgres://${POSTGRES_USER:-spoticord}:${POSTGRES_PASSWORD:-spoticord}@db:5432/${POSTGRES_DB:-spoticord}
-      SPOTIFY_REDIRECT_URI: ${SPOTIFY_REDIRECT_URI:-http://localhost:3000/authorize}
+      SPOTIFY_REDIRECT_URI: ${SPOTIFY_REDIRECT_URI:-http://127.0.0.1:3000/authorize}
     ports:
       - "${LINK_PORT:-3000}:3000"
     depends_on:
